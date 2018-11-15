@@ -1,0 +1,35 @@
+library(patentsview)
+library(tidyverse)
+
+#see the working directory, set the working 
+#directory 
+getwd()
+setwd("C:/CIS4730")
+
+#Create query parameters
+my_query = qry_funs$and(
+  qry_funs$gte(patent_date = "2018-01-01"),
+  qry_funs$lte(patent_date = "2018-03-31")
+)
+
+#create and refine query, save to result obj
+result = search_pv(
+  query = my_query,
+  fields = c("patent_number","patent_date", "inventor_last_name",  
+             "inventor_city",  "assignee_organization",  
+             "assignee_lastknown_state"),
+  all_pages = T
+)
+#print the results of the query
+result
+nrow(result)
+
+#unnest these results to a readable form 
+unnested_result = result$data$patents %>%
+  unnest(assignees) %>%
+  unnest(inventors)
+unnested_result
+
+#write unnested results to an RDS file
+write_rds(unnested_result, "patentsview_result.rds")
+read_rds("patentsview_result.rds")
