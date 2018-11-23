@@ -22,14 +22,15 @@ result = search_pv(
 )
 #print the results of the query
 result
-nrow(result)
-
-#unnest these results to a readable form 
-unnested_result = result$data$patents %>%
-  unnest(assignees) %>%
-  unnest(inventors)
-unnested_result
 
 #write unnested results to an RDS file
-write_rds(unnested_result, "patentsview_result.rds")
+write_rds(result, "patentsview_result.rds")
 read_rds("patentsview_result.rds")
+
+#save the contents of the file to a local object 
+read_result = read_rds("patentsview_result.rds")
+
+#unnest these results to a readable form and saves it to a local object
+unnested_result = read_result$data$patents %>%
+  unnest(inventors, .drop = F) %>%
+  unnest(assignees, .drop = F)
