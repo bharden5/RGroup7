@@ -96,3 +96,131 @@ my_server = function(input, output) {
 }
 shinyApp(ui = my_ui, server = my_server)
 ?head
+
+#Data Table shiny app
+
+library(patentsview)
+library(tidyverse)
+library(shiny)
+library(ggplot2)
+library(DT)
+library(dplyr)
+#see the working directory, set the working 
+#directory 
+getwd()
+setwd("C:/CIS4730")
+
+#Create query parameters
+my_query = qry_funs$and(
+  qry_funs$gte(patent_date = "2018-01-01"),
+  qry_funs$lte(patent_date = "2018-03-31")
+)
+
+#create and refine query, save to result obj
+result = search_pv(
+  query = my_query,
+  fields = c("patent_number","patent_date", "inventor_last_name",  
+             "inventor_city",  "assignee_organization",  
+             "assignee_lastknown_state"),
+  all_pages = F
+)
+#print the results of the query
+result
+nrow(result)
+
+#unnest these results to a readable form 
+u_r = result$data$patents %>%
+  unnest(inventors, .drop = F) %>%
+  unnest(assignees, .drop = F)
+class(u_r)
+#write unnested results to an RDS file
+write_csv(u_r, "patentsview_result2.csv")
+filepath = "patentsview_result2.csv"
+local_result = read_csv(filepath) 
+class(local_result)
+
+#user interface for data table
+my_ui <- fluidPage(
+  titlePanel("Data Table"),
+  fluidRow(
+    column(4,
+           selectInput("pat",
+                       "patent_number:",
+                       c("All",
+                         unique(as.character(local_result$patent_number))))
+           
+      
+    ),
+    column(4,
+           selectInput("patd",
+                       "patent_date:",
+                       c("All",
+                         unique(as.character(local_result$patent_date))))
+           
+           
+    ),
+    #core objective 5
+    #type name exactly, even with uppercase and lower case
+    column(4,
+           textInput("invl",
+                       "inventor_last_name:",
+                       c("All",
+                         unique(as.character(local_result$inventor_last_name))))
+           
+           
+    ),
+    column(4,
+           selectInput("invc",
+                       "inventor_city:",
+                       c("All",
+                         unique(as.character(local_result$inventor_city))))
+           
+    ),
+    column(4,
+           selectInput("aog",
+                       "assignee_organization:",
+                       c("All",
+                         unique(as.character(local_result$assignee_organization))))
+           
+    ),
+    #core objective 5
+    column(4,
+           selectInput("als",
+                       "assignee_lastknown_state:",
+                       c("All",
+                         unique(as.character(local_result$assignee_lastknown_state))))
+           
+           
+    ),
+    
+ DT::dataTableOutput("table")
+)
+)
+#server for inputs and outputs of data
+server <- function(input, output){
+  output$table <- DT::renderDataTable(DT::datatable({
+    data <- local_result
+    if(input$pat != "All"){
+      data <- data[data$patent_number == input$pat,]
+    }
+    if(input$patd != "All"){
+      data <- data[data$patent_date == input$patd,]
+    }
+    if(input$invl != "All"){
+      data <- data[data$inventor_last_name == input$invl,]
+    }
+    if(input$invc != "All"){
+      data <- data[data$inventor_city == input$invc,]
+    }
+    if(input$aog != "All"){
+      data <- data[data$assignee_organization == input$aog,]
+    }
+    if(input$als != "All"){
+      data <- data[data$assignee_lastknown_state == input$als,]
+    }
+   
+    data
+  }))
+}
+shinyApp(ui = my_ui, server = server)
+
