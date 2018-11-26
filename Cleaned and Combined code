@@ -1,0 +1,104 @@
+library(patentsview)
+library(tidyverse)
+library(shiny)
+#see the working directory, set the working 
+#directory 
+getwd()
+setwd("C:/CIS4730")
+
+#Create query parameters
+my_query = qry_funs$and(
+  qry_funs$gte(patent_date = "2018-01-01"),
+  qry_funs$lte(patent_date = "2018-03-31")
+)
+
+#create and refine query, save to result obj
+result = search_pv(
+  query = my_query,
+  fields = c("patent_number","patent_date", "inventor_last_name",  
+             "inventor_city",  "assignee_organization",  
+             "assignee_lastknown_state"),
+  all_pages = T
+)
+#print the results of the query
+result
+
+#write unnested results to an RDS file
+write_rds(result, "patentsview_result.rds")
+read_rds("patentsview_result.rds")
+
+#save the contents of the file to a local object 
+read_result = read_rds("patentsview_result.rds")
+
+#unnest these results to a readable form and saves it to a local object
+unnested_result = read_result$data$patents %>%
+  unnest(inventors, .drop = F) %>%
+  unnest(assignees, .drop = F)
+
+original_table = unnested_result
+
+
+#ShinyApp
+#UI
+my_ui = fluidPage(
+  
+  selectInput(inputId = "summary_set", 
+              label = "find the number of...", 
+              choices = c("patents", "unique assignees", "unique inventors")
+  ),
+  
+  verbatimTextOutput("summary"),
+  
+  selectInput(inputId = "state",
+              label = "State: ", 
+              choices = c("All", unique(as.character(
+                unnested_result$assignee_lastknown_state)))),
+  textInput(inputId = "last_name",
+            label = "Inventors Last Name",
+            value = "All"),
+  
+  dataTableOutput(outputId = "main_table"),
+  
+  plotOutput("plot")
+  
+)
+#Server
+my_server = function(input, output) {
+  
+  datasetInput = reactive({
+    switch(input$summary_set, 
+           "patents" = unnested_result$patent_number,
+           "unique assignees" = unnested_result$assignee_organization,
+           "unique inventors" = unnested_result$inventor_last_name
+    )
+  })
+  
+  output$summary = renderPrint({
+    summary_set = datasetInput()
+    nrow(as.data.frame(table(summary_set)))
+  })
+  
+  output$main_table = renderDataTable({
+    my_table = original_table
+    
+    if(input$state != "All"){
+      my_table = my_table %>%
+        filter(assignee_lastknown_state == input$state)
+    }
+    if(input$last_name != "All"){
+      my_table = my_table %>%
+        filter(inventor_last_name == input$last_name)
+    }
+    
+    return(my_table)
+  })
+  
+  output$plot = renderPlot({
+    vec = c(unnested_result$patent_number, unnested_result$assignee_organization)
+    counts = table(head(vec, n = 6L))
+    barplot(counts,
+            main = "test"
+    )
+  })
+}
+shinyApp(ui = my_ui, server = my_server)
