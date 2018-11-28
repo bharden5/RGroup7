@@ -1,6 +1,6 @@
 #Final Project
 #11/29/2018
-#Kudzai Mundava, Brandon Harden, Dominique Dongoh 
+#Kudzai Mundava, Brandon, Dominique Dongoh 
 
 library(patentsview)
 library(tidyverse)
@@ -35,33 +35,33 @@ write_csv(unnested_results, "patentsviews2.csv")
 file.path("patentsview2.csv")
 unnested_results = read_csv("patentsviews2.csv")
 
-
+#create variable to hold unnested results for sums
 list <- (unnested_results)
 
-
+#sum variables
 x <- unique(list$patent_id)
 y <- unique(list$assignee_id)
 z <- unique(list$inventor_id)
 
 
-
 #userinterface part
 
 my_ui <- fluidPage(
-  titlePanel("Patent Data Table from Jan 1, 2018 to March 31, 2018"),
-  textInput(inputId = "text_input",
-            label = "Inventor's Last Name",
-            value = ""),
-  
+  titlePanel("Patent Data Table from Jan 1, 2018 - March 31, 2018"),
   selectInput(inputId = "select_input",
               label = "State of Assignee Organizations",
               choices = c("All", unique(as.character(unnested_results$assignee_lastknown_state))),
               selected = "All"
               
   ),
+  textInput(inputId = "text_input",
+            label = "Inventor's Last Name",
+            value = ""),
+  
+
   htmlOutput("sum"),
   dataTableOutput("table_output"),
-  plotOutput(outputId = "foureassignees"),
+  plotOutput(outputId = "fourassignees"),
   plotOutput(outputId = "fiveinventors"),
   plotOutput(outputId = "fivecountries"),
   plotOutput(outputId = "tenpatents")
@@ -77,10 +77,9 @@ my_server <- function(input, output) {
     
     
     fourassignee <- rev(sort(table(unnested_results$assignee_organization)))[1:4]
-    fourassignee
     
     barplot(fourassignee,
-            main = "Top 4 Assignee Organization",
+            main = "Top 4 Assignee Organizations",
             xlab = "List of Assignees",
             col = "gray",
             ylab = "Number of patents"
@@ -89,11 +88,10 @@ my_server <- function(input, output) {
   
   output$fiveinventors <- renderPlot({
     
-    inventors <- rev(sort(table(unnested_results$inventor_last_name)))[1:5]
-    inventors
+    proinventors <- rev(sort(table(unnested_results$inventor_last_name)))[1:5]
     
-    barplot(inventors,
-            main = "Top 5 Inventors",
+    barplot(proinventors,
+            main = " 5 Most Prolific Inventors",
             xlab = "List of Inventors",
             col = "pink",
             ylab = "Number of patents"
@@ -102,10 +100,9 @@ my_server <- function(input, output) {
   
   output$fivecountries <- renderPlot({
     
-    countries <- rev(sort(table(unnested_results$inventor_country)))[1:5]
-    countries
+    topcountries <- rev(sort(table(unnested_results$inventor_country)))[1:5]
     
-    barplot(countries,
+    barplot(topcountries,
             main = "Top 5 Countries",
             xlab = "List of Countries",
             col = "orange",
@@ -116,11 +113,10 @@ my_server <- function(input, output) {
   
   output$tenpatents <- renderPlot({
     
-    top10patents <- rev(sort(table(unnested_results$assignee_organization)))[1:5]
-    top10patents
+    assignees <- rev(sort(table(unnested_results$assignee_organization)))[1:5]
     
-    barplot(top10patents > 10,
-            main = "Assignee Organizartions with more than 10 patents",
+    barplot(assignees > 10,
+            main = "Assignee Organizations with more than 10 patents",
             xlab = "List of Assignee Organizations",
             col = "blue",
             ylab = "Number of patents"
@@ -128,6 +124,7 @@ my_server <- function(input, output) {
     )
     
   })
+  
   
   
   #DataTable
@@ -162,9 +159,9 @@ my_server <- function(input, output) {
   output$sum = renderPrint({
     paste("Number of Patents: ", length(x),
           "
-          Number of Assignee: ", length(y),
+          Number of Assignees: ", length(y),
           "
-          Number of Inventor: ", length(z))})
+          Number of Inventors: ", length(z))})
   }
 
 
