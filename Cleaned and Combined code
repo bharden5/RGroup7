@@ -15,9 +15,9 @@ my_query = qry_funs$and(
 #create and refine query, save to result obj
 result = search_pv(
   query = my_query,
-  fields = c("patent_number","patent_date", "inventor_last_name",  
-             "inventor_city",  "assignee_organization",  
-             "assignee_lastknown_state"),
+  fields = c("patent_id", "patent_date", "patent_number", "inventor_first_name",
+             "inventor_last_name", "inventor_city", "assignee_organization", "assignee_lastknown_state", "app_country", "assignee_country",
+             "assignee_id","inventor_id", "assignee_type", "appcit_kind", "app_date", "patent_title","patent_processing_time"),
   all_pages = T
 )
 #print the results of the query
@@ -56,11 +56,14 @@ my_ui = fluidPage(
   textInput(inputId = "last_name",
             label = "Inventors Last Name",
             value = "All"),
-  
+  titlePanel("Main table"),
   dataTableOutput(outputId = "main_table"),
-  
-  plotOutput("plot")
-  
+  titlePanel("Assignee organizations with more than 10 patents"),
+  dataTableOutput(outputId = "tenpatents"),
+  htmlOutput("sum"),
+  plotOutput(outputId = "fourassignees"),
+  plotOutput(outputId = "fiveinventors"),
+  plotOutput(outputId = "fivecountries")
 )
 #Server
 my_server = function(input, output) {
@@ -93,12 +96,41 @@ my_server = function(input, output) {
     return(my_table)
   })
   
-  output$plot = renderPlot({
-    vec = c(unnested_result$patent_number, unnested_result$assignee_organization)
-    counts = table(head(vec, n = 6L))
-    barplot(counts,
-            main = "test"
+  output$tenpatents = renderDataTable({
+    
+    top10patents = as.data.frame(table(unnested_result$assignee_organization))
+
+    return(top10patents) %>%
+      filter(top10patents$Freq > 10) 
+     
+    
+  })
+  output$fourassignees <- renderPlot({
+    
+    
+    fourassignee <- rev(sort(table(unnested_result$assignee_organization)))[1:4]
+    fourassignee
+    
+    barplot(fourassignee,
+            main = "Top 4 Assignee Organization",
+            xlab = "List of Assignees",
+            col = "gray",
+            ylab = "Number of patents"
     )
   })
+  
+  output$fiveinventors <- renderPlot({
+    
+    inventors <- rev(sort(table(unnested_result$inventor_last_name)))[1:5]
+    inventors
+    
+    barplot(inventors,
+            main = "Top 5 Inventors",
+            xlab = "List of Inventors",
+            col = "pink",
+            ylab = "Number of patents"
+    )
+  })
+
 }
 shinyApp(ui = my_ui, server = my_server)
