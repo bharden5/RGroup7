@@ -15,9 +15,9 @@ my_query = qry_funs$and(
 #create and refine query, save to result obj
 result = search_pv(
   query = my_query,
-  fields = c("patent_number","patent_date", "inventor_last_name",  
-             "inventor_city",  "assignee_organization",  
-             "assignee_lastknown_state"),
+  fields = c("patent_id", "patent_date", "patent_number", "inventor_first_name",
+             "inventor_last_name", "inventor_city", "assignee_organization", "assignee_lastknown_state", "app_country", "assignee_country",
+             "assignee_id","inventor_id", "assignee_type", "appcit_kind", "app_date", "patent_title","patent_processing_time"),
   all_pages = T
 )
 #print the results of the query
