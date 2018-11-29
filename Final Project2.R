@@ -1,6 +1,7 @@
 #Final Project
+#Group 7
 #11/29/2018
-#Kudzai Mundava, Brandon, Dominique Dongoh 
+#Kudzai Mundava, Brandon Harden, Dominique Dongoh 
 
 library(patentsview)
 library(tidyverse)
@@ -47,6 +48,10 @@ z <- unique(list$inventor_id)
 #userinterface part
 
 my_ui <- fluidPage(
+  
+  titlePanel("Assignee organizations with more than 10 patents"), 
+  dataTableOutput(outputId = "tenpatents"),
+  
   titlePanel("Patent Data Table from Jan 1, 2018 - March 31, 2018"),
   selectInput(inputId = "select_input",
               label = "State of Assignee Organizations",
@@ -54,17 +59,19 @@ my_ui <- fluidPage(
               selected = "All"
               
   ),
+  
+  
   textInput(inputId = "text_input",
             label = "Inventor's Last Name",
             value = ""),
+  
   
 
   htmlOutput("sum"),
   dataTableOutput("table_output"),
   plotOutput(outputId = "fourassignees"),
   plotOutput(outputId = "fiveinventors"),
-  plotOutput(outputId = "fivecountries"),
-  plotOutput(outputId = "tenpatents")
+  plotOutput(outputId = "fivecountries")
   
 )
 
@@ -111,21 +118,6 @@ my_server <- function(input, output) {
     )
   })
   
-  output$tenpatents <- renderPlot({
-    
-    assignees <- rev(sort(table(unnested_results$assignee_organization)))[1:5]
-    
-    barplot(assignees > 10,
-            main = "Assignee Organizations with more than 10 patents",
-            xlab = "List of Assignee Organizations",
-            col = "blue",
-            ylab = "Number of patents"
-            
-    )
-    
-  })
-  
-  
   
   #DataTable
   output$table_output = renderDataTable({
@@ -155,13 +147,21 @@ my_server <- function(input, output) {
     main_table
     
   })
-  
+  #sum information
   output$sum = renderPrint({
     paste("Number of Patents: ", length(x),
           "
           Number of Assignees: ", length(y),
           "
           Number of Inventors: ", length(z))})
+  #tenpatents data table
+  output$tenpatents = renderDataTable({
+    
+    top10patents = as.data.frame(table(unnested_results$assignee_organization))
+    
+    return(top10patents) %>%
+      filter(top10patents$Freq > 10) 
+  })
   }
 
 
