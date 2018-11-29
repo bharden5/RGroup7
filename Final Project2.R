@@ -1,7 +1,7 @@
 #Final Project
 #Group 7
 #11/29/2018
-#Kudzai Mundava, Brandon Harden, Dominique Dongoh 
+#Brandon Harden, Dominique Dongoh, Kudzai Mundava 
 
 library(patentsview)
 library(tidyverse)
