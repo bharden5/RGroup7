@@ -1,0 +1,206 @@
+library(patentsview)
+library(tidyverse)
+library(shiny)
+#see the working directory, set the working 
+#directory 
+getwd()
+setwd("C:/CIS4730")
+
+
+df <- search_pv(
+  
+  query = qry_funs$and(
+    qry_funs$gte(patent_date = "2018-01-01"), 
+    qry_funs$lte(patent_date = "2018-03-31")
+  ),
+  fields = c("patent_id", "patent_date", "patent_number", "inventor_first_name",
+             "inventor_last_name", "inventor_city", "assignee_organization", "assignee_lastknown_state", "app_country", "assignee_country",
+             "assignee_id","inventor_id", "assignee_type", "appcit_kind", "app_date", "patent_title","patent_processing_time"),
+  all_pages = T
+)
+
+#print the results of the query
+result
+
+#write unnested results to an RDS file
+write_rds(result, "patentsview_result.rds")
+read_rds("patentsview_result.rds")
+
+#save the contents of the file to a local object 
+read_result = read_rds("patentsview_result.rds")
+
+#unnests result 
+
+unnested_result <- df$data$patents %>% 
+  unnest(inventors, .drop = FALSE) %>%
+  unnest(assignees, .drop = FALSE) %>%
+  unnest(applications)
+
+
+#this will display the main table in the application
+main_table <- unnested_result %>%
+  select("patent_number","patent_date","inventor_last_name","inventor_city","assignee_organization","assignee_lastknown_state")
+
+#creates table noting assignnee and number of patents held by that organization
+numOfPatents = rev(sort(table(unnested_result$assignee_organization)))[1:5]
+
+
+#objective 1
+#create a datafram noting inventors and how many patents they have by thier unique id number
+numOfInventors <- unnested_result %>%
+  group_by(inventor_id,inventor_first_name, inventor_last_name, inventor_id) %>%
+  summarize(pat_count = n()) %>%
+  ungroup() %>%
+  arrange(desc(pat_count)) %>%
+  slice(1:5)
+  
+
+
+# objective 2
+#create a dataframe noting countries most interested in patents
+gov_patent_frame <- unnested_result %>% 
+  filter(assignee_type == 6 | assignee_type == 7 | assignee_type == 8 ) %>%  
+  group_by(assignee_country) %>%
+  summarize(pat_count = n()) %>%
+  ungroup() %>%
+  arrange(desc(pat_count)) %>%
+  slice(1:5)
+
+ 
+
+
+# objective 3
+#assignee organizations with 10 or more patents
+min_of_ten_frame <- unnested_result %>%
+  group_by(assignee_organization) %>%
+  summarize(pat_count = n()) %>%
+  filter(pat_count >= 10) %>%
+  arrange(pat_count)
+
+
+
+
+
+
+state_vect <- unique(sort(unnested_result$assignee_lastknown_state))
+
+
+
+#Main table column names
+main_col_names <- c("Patent Number", "Patent Date", "Inventor Last Name","Inventor City","Assignee Org","Assignee State")
+
+# Shiny app
+
+my_ui <- fluidPage(
+  
+  
+  titlePanel(h1("Patent Information Project")),
+  
+  fluidRow(
+    
+    column(4, textOutput(outputId = "numPatents", container = div, inline = FALSE )),
+    column(4, textOutput(outputId = "numAssignees", container = div, inline = FALSE)),
+    column(4, textOutput(outputId = "numInventors", container = div, inline = FALSE))
+  ),
+  
+  fluidRow(
+    column(4, selectInput("state",h3("Search State"),c("All", state_vect ))),
+    column(4, textInput("lastName", h3("Search Last Name")))
+  ),
+  
+  fluidRow(
+    headerPanel(h3("Patent Information")),
+    column(12, dataTableOutput(outputId = "table_output")
+    )
+  ),
+  
+  fluidRow(
+    headerPanel(h3("Top 5 Assignee Organizations")),
+    column(12, plotOutput(outputId = "topAssignee")
+    )
+  ),
+  
+  fluidRow(
+    
+    column(6, headerPanel(h3("Top 5 Inventors")), dataTableOutput(outputId = "top_inventors")),
+    column(6,  headerPanel(h3("Top 5 Patent Holding Countries")), dataTableOutput(outputId = "top_countries")
+           
+  )),
+  
+  fluidRow(
+    headerPanel(h3("Assignees Holding A Minumum of 10 Patents")),
+    column(6, dataTableOutput(outputId = "min_of_ten")
+    )
+  ) 
+ 
+)
+
+my_server <- function(input, output) {
+  
+  #histogram
+  output$topAssignee <- renderPlot({
+    
+    numOfPatents = rev(sort(table(unnested_result$assignee_organization)))[1:5]
+    
+    barplot(numOfPatents,
+            ylab="Number of Patents",
+            xlab="Assignee Organization",
+            col = "gold")
+  })
+  
+  #main table-
+  output$table_output = renderDataTable({
+    
+    
+    if(input$state != "All"){
+      main_table <- main_table %>%
+        filter(assignee_lastknown_state == input$state)
+        }
+    
+    if(str_length(input$lastName) > 0){
+      main_table <- main_table %>%
+        filter(str_detect(tolower(inventor_last_name), START %R% tolower(input$lastName)))
+    }
+    
+    main_table
+    
+  })
+  
+  # objective 1
+  #most prolific inventors-
+  output$top_inventors <- renderDataTable({
+    
+    numOfInventors
+    
+  })
+  
+  
+  # objective 2
+  #countries with the most patents
+  output$top_countries <- renderDataTable({
+    
+    gov_patent_frame <- gov_patent_frame %>%
+      select(assignee_country, pat_count)
+    
+  })
+  
+  # objective 3
+  #assignees with a min of ten patents
+  output$min_of_ten <- renderDataTable({
+    
+    min_of_ten_frame
+    
+  })
+  
+  #-summary statistics
+  output$numPatents = renderText({paste("Number of Patents:",toString(length(unnested_result$patent_id)))})
+  output$numAssignees = renderText({paste("Number of Assignees:",toString(length(unique(unnested_result$assignee_id))))})
+  output$numInventors = renderText({paste("Number of Inventors:",toString(length(unique(unnested_result$inventor_id))))})
+  
+ 
+  
+}
+
+
+shinyApp(ui = my_ui, server = my_server)
+
